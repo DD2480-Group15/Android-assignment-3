@@ -89,6 +89,100 @@ public class ImportExportTest {
         assertEquals(cardsToAdd, DBHelper.getLoyaltyCardCount(mDatabase));
     }
 
+    /**
+     * 
+     * FUNC 3: importLoyaltyCard(CSVRecord) in CatimaImporter.java / 4 tests
+     * 
+     * 
+     * - ImportLoyaltyCard is private, instead it is called via MultiFormatImporter.importData()
+     * - importdata() input: 
+     *      1) inputstream (our byteArrayInputStream, inData)
+     *      2) DataFormat.Catima -> gives correct importer class
+     * 
+     * - Flow:
+     * importData() -> importCSV() -> parseV1() runs importLoyaltyCard(record)
+     * 
+     * (DBHelper.java hold info about csv-header names (keys))
+     * 
+     * By controlling parameter "inData" we can controll the branches taken
+     */
+
+    /**
+     * Create fake csv-data and leave store field empty (id and cardid are mandatory)
+     * This will produce ImportExportResult of type GenericFailure (source MultiFormatImporter.java)
+     */
+  @Test
+    public void missingStore() {
+        // if should result in true
+        // row 401-402 store.isEmpty()
+        String csvData = "_id,store,cardid\n1,,\"123\""; 
+        InputStream inData = new ByteArrayInputStream(csvData.getBytes());
+        ImportExportResult result = MultiFormatImporter.importData(activity, mDatabase, inData, DataFormat.Catima, null);
+        assertEquals(ImportExportResultType.GenericFailure, result.resultType());
+    }
+
+    /**
+     * We need to set: id, store and cardid correctly 
+     * Set balance to something that is not a number -> passing a string
+     * try {} will try and set balance to a decimal and fail
+     * This will produce a card with balance = 0
+     */
+    @Test
+    public void importInvalidBalanceFormat() {
+        // force catch to happen
+        // row 436 NumberFormatException catch
+        String csvData = "_id,store,cardid,balance\n1,\"Store\",\"123\",\"not_a_number\"";
+        InputStream inData = new ByteArrayInputStream(csvData.getBytes());
+        MultiFormatImporter.importData(activity, mDatabase, inData, DataFormat.Catima, null);
+        // fetch the card from testDB
+        LoyaltyCard card = DBHelper.getLoyaltyCard(activity, mDatabase, 1);
+        // balance should stay "0"
+        assertEquals(new BigDecimal("0"), card.balance);
+    }
+
+    /**
+     * We need to set: id and store correctly 
+     * Set cardid to empty
+     * This will produce ImportExportResult of type GenericFailure (source MultiFormatImporter.java)
+     * 
+     */
+    @Test
+    public void missingCardId() {
+        // if should result in true
+        // row 447-448 cardId.isEmpty()
+        String csvData = "_id,store,cardid\n1,\"Store\","; 
+        InputStream inData = new ByteArrayInputStream(csvData.getBytes());
+        ImportExportResult result = MultiFormatImporter.importData(activity, mDatabase, inData, DataFormat.Catima, null);
+        assertEquals(ImportExportResultType.GenericFailure, result.resultType());
+    }
+
+
+    /**
+     * We need to set: id, store and cardid correctly 
+     * Set archive = 1
+     * This will produce a card with archiveStatus = 1
+     */
+    @Test
+    public void importWithArchivedStatus() {
+        // if should result in false (archive = 1)
+        // row 493 archiveStatus != 1
+        String csvData = "_id,store,cardid,archive\n" + 
+                        "1,\"Store\",\"123\",1"; 
+        InputStream inData = new ByteArrayInputStream(csvData.getBytes());
+        MultiFormatImporter.importData(activity, mDatabase, inData, DataFormat.Catima, null); //saveAndDeduplicate() called by parseV1 impoprts to testDB
+        // fetch the card
+        LoyaltyCard card = DBHelper.getLoyaltyCard(activity, mDatabase, 1);
+        // the card should have been imported and archivestatus should be 1
+        assertNotNull(card); 
+        assertEquals(1, card.archiveStatus);
+    }
+    
+    /**
+     * 
+     * END OF FUNC 3 TESTS
+     * 
+     */
+
     @Test
     public void addLoyaltyCardsWithExpiryNeverPastTodayFuture() {
         long id = DBHelper.insertLoyaltyCard(mDatabase, "No Expiry", "", null, null, new BigDecimal("0"), null, BARCODE_DATA, null, BARCODE_TYPE, StandardCharsets.ISO_8859_1, 0, 0, null,0);
