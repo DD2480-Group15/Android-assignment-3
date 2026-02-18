@@ -10,6 +10,12 @@ import java.io.IOException;
  */
 public class CoverageTool {
 
+    static {
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        outputCoverageStatistics();
+    }));
+}
+
     private static final String[] FUNCTIONS = {
             "onResume in LoyaltyCardViewActivity",
             "onClick in ChooseCardImage",
