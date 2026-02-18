@@ -48,15 +48,6 @@ public class LoyaltyCardEditActivityTest {
         listener = activity.new ChooseCardImage();
     }
 
-    /**
-     * Verifies that {@code ChooseImage::onClick} generate the correct dialog
-     * when the view id is set to {@code frontImageHolder}
-     * <p>
-     * Test setup: view id is set to be frontImageHolder and simulated through robolectric shadow
-     * to see the dialog
-     * Expected outcome: Dialog exsists and has frontImage title
-     * </p>
-     */
     @Test
     public void onClick_FrontImageHolder_ShowDialogCorrecly() {
         View v = activity.findViewById(R.id.frontImageHolder);
@@ -73,15 +64,6 @@ public class LoyaltyCardEditActivityTest {
         assertEquals(titleView.getText().toString(), expected);
     }
 
-    /**
-     * Verifies that {@code ChooseImage::onClick} generate the correct dialog
-     * when the view id is set to {@code backImageHolder}
-     * <p>
-     * Test setup: view id is set to be backImageHolder and simulated through robolectric shadow
-     * to see the dialog
-     * Expected outcome: Dialog exsists and has backImage title
-     * </p>
-     */
     @Test
     public void onClick_backImageHolder_ShowDialogCorrecly() {
         View v = activity.findViewById(R.id.backImageHolder);
@@ -98,15 +80,6 @@ public class LoyaltyCardEditActivityTest {
         assertEquals(titleView.getText().toString(), expected);
     }
 
-    /**
-     * Verifies that {@code ChooseImage::onClick} generate the correct dialog
-     * when the view id is set to {@code thumbnail}
-     * <p>
-     * Test setup: view id is set to be thumbnail and simulated through robolectric shadow
-     * to see the dialog
-     * Expected outcome: Dialog exsists and has thumbnail title
-     * </p>
-     */
     @Test
     public void onClick_thumbnail_ShowDialogCorrecly() {
         View v = activity.findViewById(R.id.thumbnail);
@@ -123,14 +96,6 @@ public class LoyaltyCardEditActivityTest {
         assertEquals(titleView.getText().toString(), expected);
     }
 
-    /**
-     * Verifies that {@code ChooseImage::onClick} throw IllegalArgumentException 
-     * when the view id is not frontImage, backImage, or thumbnail
-     * <p>
-     * Test setup: view id is set to be -1
-     * Expected outcome: throw IllegalArgumentException
-     * </p>
-     */
     @Test(expected = IllegalArgumentException.class)
     public void onClick_InvalidImageId_ThrowsException() {
         View v = new View(activity);
