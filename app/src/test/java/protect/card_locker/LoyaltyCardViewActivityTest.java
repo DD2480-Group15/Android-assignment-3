@@ -108,7 +108,7 @@ public class LoyaltyCardViewActivityTest {
     }
 
     @AfterClass
-    public static void printOutResults() { // TODO: change name
+    public static void generateCoverageRepoer() {
         CoverageTool.outputCoverageStatistics();
     }
 
