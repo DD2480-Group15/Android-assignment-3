@@ -162,7 +162,6 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.junit.junit)
     testImplementation(libs.org.robolectric.robolectric)
-    testImplementation("org.mockito:mockito-core:5.11.0") // add mockito dependency
 
     androidTestImplementation(libs.bundles.androidx.test)
     androidTestImplementation(libs.junit.junit)
