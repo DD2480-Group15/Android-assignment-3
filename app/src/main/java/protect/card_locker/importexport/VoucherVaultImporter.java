@@ -32,6 +32,7 @@ import protect.card_locker.DBHelper;
 import protect.card_locker.FormatException;
 import protect.card_locker.LoyaltyCard;
 import protect.card_locker.Utils;
+import protect.card_locker.coverage.CoverageTool;
 
 /**
  * Class for importing a database from CSV (Comma Separate Values)
@@ -78,18 +79,32 @@ public class VoucherVaultImporter implements Importer {
 
             Date expiry = null;
             if (!jsonCard.isNull("expires")) {
+                CoverageTool.setFunc4Flag(0);
                 @SuppressLint("SimpleDateFormat") SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
                 dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
                 expiry = dateFormat.parse(jsonCard.getString("expires"));
             }
+            else{
+                CoverageTool.setFunc4Flag(1);
+            }
 
             BigDecimal balance = new BigDecimal("0");
             if (jsonCard.has("balanceMilliunits")) {
+                CoverageTool.setFunc4Flag(2);
+
                 if (!jsonCard.isNull("balanceMilliunits")) {
+                    CoverageTool.setFunc4Flag(3);
                     balance = new BigDecimal(String.valueOf(jsonCard.getInt("balanceMilliunits") / 1000.0));
                 }
+                else{
+                    CoverageTool.setFunc4Flag(4);
+                }
             } else if (!jsonCard.isNull("balance")) {
+                CoverageTool.setFunc4Flag(5);
                 balance = new BigDecimal(String.valueOf(jsonCard.getDouble("balance")));
+            }
+            else{
+                CoverageTool.setFunc4Flag(6);
             }
 
             Currency balanceType = Currency.getInstance("USD");
@@ -101,23 +116,30 @@ public class VoucherVaultImporter implements Importer {
             String codeTypeFromJSON = jsonCard.getString("codeType");
             switch (codeTypeFromJSON) {
                 case "CODE128":
+                    CoverageTool.setFunc4Flag(7);
                     barcodeType = CatimaBarcode.fromBarcode(BarcodeFormat.CODE_128);
                     break;
                 case "CODE39":
+                    CoverageTool.setFunc4Flag(8);
                     barcodeType = CatimaBarcode.fromBarcode(BarcodeFormat.CODE_39);
                     break;
                 case "EAN13":
+                    CoverageTool.setFunc4Flag(9);
                     barcodeType = CatimaBarcode.fromBarcode(BarcodeFormat.EAN_13);
                     break;
                 case "PDF417":
+                    CoverageTool.setFunc4Flag(10);
                     barcodeType = CatimaBarcode.fromBarcode(BarcodeFormat.PDF_417);
                     break;
                 case "QR":
+                    CoverageTool.setFunc4Flag(11);
                     barcodeType = CatimaBarcode.fromBarcode(BarcodeFormat.QR_CODE);
                     break;
                 case "TEXT":
+                    CoverageTool.setFunc4Flag(12);
                     break;
                 default:
+                    CoverageTool.setFunc4Flag(13);
                     throw new FormatException("Unknown barcode type found: " + codeTypeFromJSON);
             }
 
@@ -126,27 +148,35 @@ public class VoucherVaultImporter implements Importer {
             String colorFromJSON = jsonCard.getString("color");
             switch (colorFromJSON) {
                 case "GREY":
+                    CoverageTool.setFunc4Flag(14);
                     headerColor = Color.GRAY;
                     break;
                 case "BLUE":
+                    CoverageTool.setFunc4Flag(15);
                     headerColor = Color.BLUE;
                     break;
                 case "GREEN":
+                    CoverageTool.setFunc4Flag(16);
                     headerColor = Color.GREEN;
                     break;
                 case "ORANGE":
+                    CoverageTool.setFunc4Flag(17);
                     headerColor = Color.rgb(255, 165, 0);
                     break;
                 case "PURPLE":
+                    CoverageTool.setFunc4Flag(18);
                     headerColor = Color.rgb(128, 0, 128);
                     break;
                 case "RED":
+                    CoverageTool.setFunc4Flag(19);
                     headerColor = Color.RED;
                     break;
                 case "YELLOW":
+                    CoverageTool.setFunc4Flag(20);
                     headerColor = Color.YELLOW;
                     break;
                 default:
+                    CoverageTool.setFunc4Flag(21);
                     throw new FormatException("Unknown colour type found: " + colorFromJSON);
             }
 
