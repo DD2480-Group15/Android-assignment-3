@@ -52,6 +52,7 @@ import com.google.zxing.BarcodeFormat;
 import com.google.zxing.client.android.Intents;
 
 import org.junit.Before;
+import org.junit.AfterClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
@@ -62,6 +63,7 @@ import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowActivity;
 import org.robolectric.shadows.ShadowDialog;
 import org.robolectric.shadows.ShadowLog;
+import org.robolectric.shadows.ShadowToast;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -73,6 +75,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Currency;
 import java.util.Date;
+import java.io.FileWriter;
+import java.io.FileOutputStream;
+
+import protect.card_locker.coverage.CoverageTool;
 
 @RunWith(RobolectricTestRunner.class)
 public class LoyaltyCardViewActivityTest {
@@ -99,6 +105,11 @@ public class LoyaltyCardViewActivityTest {
     public void setUp() {
         // Output logs emitted during tests so they may be accessed
         ShadowLog.stream = System.out;
+    }
+
+    @AfterClass
+    public static void printOutResults() { // TODO: change name
+        CoverageTool.outputCoverageStatistics();
     }
 
     /**
@@ -1399,5 +1410,171 @@ public class LoyaltyCardViewActivityTest {
 
         checkAllFields(activity, ViewMode.ADD_CARD, "Example Store", "", context.getString(R.string.anyDate), context.getString(R.string.never), "0", context.getString(R.string.points), "123456", context.getString(R.string.sameAsCardId), "Aztec", "ISO-8859-1", null, null);
         assertEquals(-416706, ((ColorDrawable) activity.findViewById(R.id.thumbnail).getBackground()).getColor());
+    }
+
+
+    /**
+     * Verifies that attempting to open a loyalty card with an unsupported barcode
+     * format shows the correct error toast.
+     */
+    @Test
+    public void barcodeNotSupportedShowsToast() {
+        final Context context = ApplicationProvider.getApplicationContext();
+        SQLiteDatabase database = TestHelpers.getEmptyDb(context).getWritableDatabase();
+
+        long cardId = DBHelper.insertLoyaltyCard(database, "store", "note", null, null, new BigDecimal("0"), null, BARCODE_DATA, null, CatimaBarcode.fromBarcode(BarcodeFormat.RSS_14), StandardCharsets.ISO_8859_1, Color.BLACK, 0, null, 0);
+
+        ActivityController activityController = createActivityWithLoyaltyCard(false, (int) cardId);
+        AppCompatActivity activity = (AppCompatActivity) activityController.get();
+
+        activityController.start();
+        activityController.visible();
+        activityController.resume();
+
+        assertEquals(
+            context.getString(R.string.unsupportedBarcodeType),
+            ShadowToast.getTextOfLatestToast()
+        );
+
+        // Pressing back when not in full screen should finish activity
+        activity.getOnBackPressedDispatcher().onBackPressed();
+        shadowOf(getMainLooper()).idle();
+        assertEquals(true, activity.isFinishing());
+
+        database.close();
+    }
+
+    /**
+     * Verifies that launching the loyalty card view for a card that no longer exists
+     * shows the correct error toast.
+     */
+    @Test
+    public void loyaltyCardNullShowsToast() {
+        final Context context = ApplicationProvider.getApplicationContext();
+        SQLiteDatabase database = TestHelpers.getEmptyDb(context).getWritableDatabase();
+
+        long cardId = DBHelper.insertLoyaltyCard(database, "store", "note", null, null, new BigDecimal("0"), null, BARCODE_DATA, null, BARCODE_TYPE, StandardCharsets.ISO_8859_1, Color.BLACK, 0, null, 0);
+
+        ActivityController activityController = createActivityWithLoyaltyCard(false, (int) cardId);
+        AppCompatActivity activity = (AppCompatActivity) activityController.get();
+
+        // Delete the only loyalty card
+        DBHelper.deleteLoyaltyCard(database, context, (int) cardId);
+
+        activityController.start();
+        activityController.visible();
+        activityController.resume();
+
+        assertEquals(
+            context.getString(R.string.noCardExistsError),
+            ShadowToast.getTextOfLatestToast()
+        );
+
+        // Pressing back when not in full screen should finish activity
+        activity.getOnBackPressedDispatcher().onBackPressed();
+        shadowOf(getMainLooper()).idle();
+        assertEquals(true, activity.isFinishing());
+
+        database.close();
+    }
+
+    /**
+     * Verifies that a front image bitmap stored for a loyalty card is correctly
+     * detected and loaded by the activity.
+     */
+    @Test
+    public void frontImageBitmapNotNull() {
+        final Context context = ApplicationProvider.getApplicationContext();
+        SQLiteDatabase database = TestHelpers.getEmptyDb(context).getWritableDatabase();
+
+        long cardId = DBHelper.insertLoyaltyCard(database, "store", "note", null, null, new BigDecimal("0"), null, BARCODE_DATA, null, BARCODE_TYPE, StandardCharsets.ISO_8859_1, Color.BLACK, 0, null, 0);
+
+        ActivityController activityController = createActivityWithLoyaltyCard(false, (int) cardId);
+        LoyaltyCardViewActivity activity = (LoyaltyCardViewActivity) activityController.get();
+
+        // Create and save bitmap
+        String fileName = Utils.getCardImageFileName((int) cardId, ImageLocationType.front);
+        Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+        for (int y = 0; y < 100; y++) {
+            for (int x = 0; x < 100; x++) {
+                if ((x + y) % 2 == 0) {
+                    bitmap.setPixel(x, y, Color.RED);
+                } else {
+                    bitmap.setPixel(x, y, Color.BLUE);
+                }
+            }
+        }
+        try (FileOutputStream fos = context.openFileOutput(fileName, Context.MODE_PRIVATE)) {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        activityController.start();
+        activityController.visible();
+        activityController.resume();
+
+        assertTrue(activity.imageTypes.contains(LoyaltyCardViewActivity.ImageType.IMAGE_FRONT));        
+
+        // Pressing back when not in full screen should finish activity
+        activity.getOnBackPressedDispatcher().onBackPressed();
+        shadowOf(getMainLooper()).idle();
+        assertEquals(true, activity.isFinishing());
+
+        database.close();
+
+        // Clean up
+        context.deleteFile(fileName);
+    }
+
+    /**
+     * Verifies that a front image bitmap stored for a loyalty card is correctly
+     * detected and loaded by the activity.
+     */
+    @Test
+    public void backImageBitmapNotNull() {
+        final Context context = ApplicationProvider.getApplicationContext();
+        SQLiteDatabase database = TestHelpers.getEmptyDb(context).getWritableDatabase();
+
+        long cardId = DBHelper.insertLoyaltyCard(database, "store", "note", null, null, new BigDecimal("0"), null, BARCODE_DATA, null, BARCODE_TYPE, StandardCharsets.ISO_8859_1, Color.BLACK, 0, null, 0);
+
+        ActivityController activityController = createActivityWithLoyaltyCard(false, (int) cardId);
+        LoyaltyCardViewActivity activity = (LoyaltyCardViewActivity) activityController.get();
+
+        // Create and save bitmap
+        String fileName = Utils.getCardImageFileName((int) cardId, ImageLocationType.back);
+        Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+        for (int y = 0; y < 100; y++) {
+            for (int x = 0; x < 100; x++) {
+                if ((x + y) % 2 == 0) {
+                    bitmap.setPixel(x, y, Color.RED);
+                } else {
+                    bitmap.setPixel(x, y, Color.BLUE);
+                }
+            }
+        }
+        try (FileOutputStream fos = context.openFileOutput(fileName, Context.MODE_PRIVATE)) {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        activityController.start();
+        activityController.visible();
+        activityController.resume();
+
+        assertTrue(activity.imageTypes.contains(LoyaltyCardViewActivity.ImageType.IMAGE_BACK));        
+
+        // Pressing back when not in full screen should finish activity
+        activity.getOnBackPressedDispatcher().onBackPressed();
+        shadowOf(getMainLooper()).idle();
+        assertEquals(true, activity.isFinishing());
+
+        database.close();
+
+        // Clean up
+        context.deleteFile(fileName);
     }
 }
