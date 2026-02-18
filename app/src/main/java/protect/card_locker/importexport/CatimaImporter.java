@@ -426,17 +426,6 @@ public class CatimaImporter implements Importer {
             expiry = new Date(expiryLong);
         }
 
-        // These fields did not exist in versions 1.8.1 and before
-        // We default to 0 so we can still import old backups
-        BigDecimal balance = new BigDecimal("0");
-        String balanceString = CSVHelpers.extractString(DBHelper.LoyaltyCardDbIds.BALANCE, record, null);
-        if (balanceString != null) {
-            try {
-                balance = new BigDecimal(CSVHelpers.extractString(DBHelper.LoyaltyCardDbIds.BALANCE, record, null));
-            } catch (NumberFormatException ignored) {
-            }
-        }
-
         Currency balanceType = null;
         String unparsedBalanceType = CSVHelpers.extractString(DBHelper.LoyaltyCardDbIds.BALANCE_TYPE, record, "");
         if (!unparsedBalanceType.isEmpty()) {
@@ -468,37 +457,8 @@ public class CatimaImporter implements Importer {
             barcodeEncoding = Charset.forName(unparsedBarcodeEncoding);
         }
 
-        Integer headerColor = null;
-        try {
-            headerColor = CSVHelpers.extractInt(DBHelper.LoyaltyCardDbIds.HEADER_COLOR, record);
-        } catch (FormatException ignored) {
-        }
-
-        int starStatus = 0;
-        try {
-            starStatus = CSVHelpers.extractInt(DBHelper.LoyaltyCardDbIds.STAR_STATUS, record);
-        } catch (FormatException _e) {
-            // This field did not exist in versions 0.28 and before
-            // We catch this exception so we can still import old backups
-        }
-        if (starStatus != 1) starStatus = 0;
-
-        int archiveStatus = 0;
-        try {
-            archiveStatus = CSVHelpers.extractInt(DBHelper.LoyaltyCardDbIds.ARCHIVE_STATUS, record);
-        } catch (FormatException _e) {
-            // This field did not exist in versions 2.16.3 and before
-            // We catch this exception so we can still import old backups
-        }
-        if (archiveStatus != 1) archiveStatus = 0;
-
-        Long lastUsed = 0L;
-        try {
-            lastUsed = CSVHelpers.extractLong(DBHelper.LoyaltyCardDbIds.LAST_USED, record);
-        } catch (FormatException _e) {
-            // This field did not exist in versions 2.5.0 and before
-            // We catch this exception so we can still import old backups
-        }
+        // Helper to extract card meta data
+        CardMetadata meta = extractMetadata(record);
 
         return new LoyaltyCard(
                 id,
@@ -506,18 +466,18 @@ public class CatimaImporter implements Importer {
                 note,
                 validFrom,
                 expiry,
-                balance,
+                meta.balance,                           // from helper
                 balanceType,
                 cardId,
                 barcodeId,
                 barcodeType,
                 barcodeEncoding,
-                headerColor,
-                starStatus,
-                lastUsed,
+                meta.headerColor,                       // from helper
+                meta.starStatus,                        // from helper
+                meta.lastUsed,                          // from helper
                 DBHelper.DEFAULT_ZOOM_LEVEL,
                 DBHelper.DEFAULT_ZOOM_LEVEL_WIDTH,
-                archiveStatus,
+                meta.archiveStatus,                     // from helper
                 null,
                 null,
                 null,
@@ -525,6 +485,51 @@ public class CatimaImporter implements Importer {
                 null,
                 null
         );
+    }
+
+    /**
+     * Helper to importLoyaltyCard
+     * Extracting: balance, headerColor, starStatus, archiveStatus and lastUsed
+     */
+    private CardMetadata extractMetadata(CSVRecord record) {
+        CardMetadata meta = new CardMetadata();
+
+        meta.balance = new BigDecimal("0");
+        String balanceString = CSVHelpers.extractString(DBHelper.LoyaltyCardDbIds.BALANCE, record, null);
+        if (balanceString != null) {
+            try {
+                meta.balance = new BigDecimal(CSVHelpers.extractString(DBHelper.LoyaltyCardDbIds.BALANCE, record, null));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        meta.headerColor = null;
+        try {
+            meta.headerColor = CSVHelpers.extractInt(DBHelper.LoyaltyCardDbIds.HEADER_COLOR, record);
+        } catch (FormatException ignored) {
+        }
+
+        meta.starStatus = 0;
+        try {
+            meta.starStatus = CSVHelpers.extractInt(DBHelper.LoyaltyCardDbIds.STAR_STATUS, record);
+        } catch (FormatException _e) {
+        }
+        if (meta.starStatus != 1) meta.starStatus = 0;
+
+        meta.archiveStatus = 0;
+        try {
+            meta.archiveStatus = CSVHelpers.extractInt(DBHelper.LoyaltyCardDbIds.ARCHIVE_STATUS, record);
+        } catch (FormatException _e) {
+        }
+        if (meta.archiveStatus != 1) meta.archiveStatus = 0;
+
+        meta.lastUsed = 0L;
+        try {
+            meta.lastUsed = CSVHelpers.extractLong(DBHelper.LoyaltyCardDbIds.LAST_USED, record);
+        } catch (FormatException _e) {
+        }
+        
+        return meta;
     }
 
     /**
@@ -555,4 +560,17 @@ public class CatimaImporter implements Importer {
 
         return Map.entry(cardId, groupId);
     }
+
+    /**
+     * Inner class as help in refactoring importLoyaltyCard()
+     */
+    private static class CardMetadata {
+        BigDecimal balance;
+        Integer headerColor;
+        int starStatus;
+        int archiveStatus;
+        Long lastUsed;
+    }
 }
+
+
