@@ -641,36 +641,7 @@ public class LoyaltyCardViewActivity extends CatimaAppCompatActivity implements 
 
         Log.i(TAG, "To view card: " + loyaltyCardId);
 
-        Window window = getWindow();
-        if (window != null) {
-            // Hide the keyboard if still shown (could be the case when returning from edit activity
-            window.setSoftInputMode(
-                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
-            );
-
-            WindowManager.LayoutParams attributes = window.getAttributes();
-
-            // The brightness value is on a scale from [0, ..., 1], where
-            // '1' is the brightest. We attempt to maximize the brightness
-            // to help barcode readers scan the barcode.
-            if (settings.useMaxBrightnessDisplayingBarcode()) {
-                attributes.screenBrightness = 1F;
-            }
-
-            if (settings.getKeepScreenOn()) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            }
-
-            if (settings.getDisableLockscreenWhileViewingCard()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                    setShowWhenLocked(true);
-                } else {
-                    showWhenLockedSdkLessThan27(window);
-                }
-            }
-
-            window.setAttributes(attributes);
-        }
+        configureWindowForCardDisplay();
 
         loyaltyCard = DBHelper.getLoyaltyCard(this, database, loyaltyCardId);
         if (loyaltyCard == null) {
@@ -727,6 +698,75 @@ public class LoyaltyCardViewActivity extends CatimaAppCompatActivity implements 
             return true;
         });
 
+        applyCardThemeColors();
+
+        determineAvailableImageTypes();
+
+        setStateBasedOnImageTypes();
+
+        setFullscreen(isFullscreen);
+
+        DBHelper.updateLoyaltyCardLastUsed(database, loyaltyCard.id);
+
+        invalidateOptionsMenu();
+
+        ShortcutHelper.updateShortcuts(this);
+    }
+
+    /**
+     * Configures window-related behavior while viewing a loyalty card.
+     *
+     * This includes:
+     *   - Hiding the soft keyboard
+     *   - Optionally maximizing screen brightness
+     *   - Keeping the screen on while the card is visible
+     *   - Allowing display over the lock screen when enabled
+     */
+    private void configureWindowForCardDisplay() {
+        Window window = getWindow();
+        if (window == null) return;
+
+        // Hide the keyboard if still shown (could be the case when returning from edit activity
+        window.setSoftInputMode(
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
+        );
+
+        WindowManager.LayoutParams attributes = window.getAttributes();
+
+        // The brightness value is on a scale from [0, ..., 1], where
+        // '1' is the brightest. We attempt to maximize the brightness
+        // to help barcode readers scan the barcode.
+        if (settings.useMaxBrightnessDisplayingBarcode()) {
+            attributes.screenBrightness = 1F;
+        }
+
+        if (settings.getKeepScreenOn()) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+
+        if (settings.getDisableLockscreenWhileViewingCard()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true);
+            } else {
+                showWhenLockedSdkLessThan27(window);
+            }
+        }
+
+        window.setAttributes(attributes);
+    }
+
+    /**
+     * Applies card-derived theme colors to the UI.
+     *
+     * Colors are computed from the loyalty card header color and applied to:
+     *   - Barcode scaling controls
+     *   - Bottom app bar and system navigation bar
+     *   - FAB background and icon tint
+     *   - Bottom app bar action icons
+     */
+    private void applyCardThemeColors() {
+        Window window = getWindow();
+
         int backgroundHeaderColor = Utils.getHeaderColor(this, loyaltyCard);
 
         // Also apply colours to UI elements
@@ -758,21 +798,41 @@ public class LoyaltyCardViewActivity extends CatimaAppCompatActivity implements 
         fixBottomAppBarImageButtonColor(binding.bottomAppBarNextButton);
         fixBottomAppBarImageButtonColor(binding.bottomAppBarUpdateBalanceButton);
         setBottomAppBarButtonState();
+    }
 
-        boolean isBarcodeSupported;
+    /**
+     * Determines whether the current barcode format is supported.
+     * 
+     * If the format is unsupported, a user-visible warning is shown.
+     * 
+     * @return true if the barcode format exists and is supported; false otherwise.
+     */
+    private boolean isBarcodeSupported() {
         if (format != null && !format.isSupported()) {
-            isBarcodeSupported = false;
-
             Toast.makeText(this, getString(R.string.unsupportedBarcodeType), Toast.LENGTH_LONG).show();
-        } else if (format == null) {
-            isBarcodeSupported = false;
-        } else {
-            isBarcodeSupported = true;
-        }
 
+            return false;
+        } else if (format == null) {
+            return false;
+        }
+        
+        return  true;
+    }
+
+    /**
+     * Determines which image types are available for display.
+     *
+     * The resulting list may include:
+     *   - Barcode image (if the format is supported)
+     *   - Front card image
+     *   - Back card image
+     *
+     * The list is stored in {@link #imageTypes}.
+     */
+    private void determineAvailableImageTypes() {
         imageTypes = new ArrayList<>();
 
-        if (isBarcodeSupported) {
+        if (isBarcodeSupported()) {
             imageTypes.add(ImageType.BARCODE);
         }
 
@@ -785,17 +845,8 @@ public class LoyaltyCardViewActivity extends CatimaAppCompatActivity implements 
         if (backImageBitmap != null) {
             imageTypes.add(ImageType.IMAGE_BACK);
         }
-
-        setStateBasedOnImageTypes();
-
-        setFullscreen(isFullscreen);
-
-        DBHelper.updateLoyaltyCardLastUsed(database, loyaltyCard.id);
-
-        invalidateOptionsMenu();
-
-        ShortcutHelper.updateShortcuts(this);
     }
+
 
     private void setStateBasedOnImageTypes() {
         // Decrease the card holder size to only fit the value if there is no barcode
