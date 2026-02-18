@@ -52,6 +52,7 @@ import com.google.zxing.BarcodeFormat;
 import com.google.zxing.client.android.Intents;
 
 import org.junit.Before;
+import org.junit.AfterClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
@@ -76,6 +77,8 @@ import java.util.Currency;
 import java.util.Date;
 import java.io.FileWriter;
 import java.io.FileOutputStream;
+
+import protect.card_locker.coverage.CoverageTool;
 
 @RunWith(RobolectricTestRunner.class)
 public class LoyaltyCardViewActivityTest {
@@ -102,6 +105,11 @@ public class LoyaltyCardViewActivityTest {
     public void setUp() {
         // Output logs emitted during tests so they may be accessed
         ShadowLog.stream = System.out;
+    }
+
+    @AfterClass
+    public static void generateCoverageRepoer() {
+        CoverageTool.outputCoverageStatistics();
     }
 
     /**
