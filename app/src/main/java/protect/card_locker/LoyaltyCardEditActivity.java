@@ -1191,27 +1191,64 @@ public class LoyaltyCardEditActivity extends CatimaAppCompatActivity implements 
     }
 
     class ChooseCardImage implements View.OnClickListener {
+        private Bitmap currentImage;
+        private ImageLocationType imageLocationType;
+        private ImageView targetView;
+
+        private void get_image(int id)
+        {
+            if (id == R.id.frontImageHolder) {
+                this.currentImage = viewModel.getLoyaltyCard().getImageFront(LoyaltyCardEditActivity.this);
+                this.imageLocationType = ImageLocationType.front;
+                this.targetView = cardImageFront;
+            } else if (id == R.id.backImageHolder) {
+                this.currentImage = viewModel.getLoyaltyCard().getImageBack(LoyaltyCardEditActivity.this);
+                this.imageLocationType = ImageLocationType.back;
+                this.targetView = cardImageBack;
+            } else if (id == R.id.thumbnail) {
+                this.currentImage = viewModel.getLoyaltyCard().getImageThumbnail(LoyaltyCardEditActivity.this);
+                this.imageLocationType = ImageLocationType.icon;
+                this.targetView = thumbnail;
+            } else {
+                throw new IllegalArgumentException("Invalid IMAGE ID " + id);
+            }
+        }
+
+        private int get_permissionRequestType_camera(int id)
+        {
+            int permissionRequestType;
+            if (id == R.id.frontImageHolder) {
+                    permissionRequestType = PERMISSION_REQUEST_CAMERA_IMAGE_FRONT;
+                } 
+                else if (id == R.id.backImageHolder) {
+                    permissionRequestType = PERMISSION_REQUEST_CAMERA_IMAGE_BACK;
+                } else if (id == R.id.thumbnail) {
+                    permissionRequestType = PERMISSION_REQUEST_CAMERA_IMAGE_ICON;
+                } else {
+                    throw new IllegalArgumentException("Unknown ID type " + id);
+                }
+            return permissionRequestType;
+        }
+        private int get_permissionRequestType_storage(int id)
+        {
+            int permissionRequestType;
+            if (id == R.id.frontImageHolder) {
+                    permissionRequestType = PERMISSION_REQUEST_STORAGE_IMAGE_FRONT;
+                } 
+                else if (id == R.id.backImageHolder) {
+                    permissionRequestType = PERMISSION_REQUEST_STORAGE_IMAGE_BACK;
+                } else if (id == R.id.thumbnail) {
+                    permissionRequestType = PERMISSION_REQUEST_STORAGE_IMAGE_ICON;
+                } else {
+                    throw new IllegalArgumentException("Unknown ID type " + id);
+                }
+            return permissionRequestType;
+        }
+
         @Override
         public void onClick(View v) throws NoSuchElementException {
-            Bitmap currentImage;
-            ImageLocationType imageLocationType;
-            ImageView targetView;
 
-            if (v.getId() == R.id.frontImageHolder) {
-                currentImage = viewModel.getLoyaltyCard().getImageFront(LoyaltyCardEditActivity.this);
-                imageLocationType = ImageLocationType.front;
-                targetView = cardImageFront;
-            } else if (v.getId() == R.id.backImageHolder) {
-                currentImage = viewModel.getLoyaltyCard().getImageBack(LoyaltyCardEditActivity.this);
-                imageLocationType = ImageLocationType.back;
-                targetView = cardImageBack;
-            } else if (v.getId() == R.id.thumbnail) {
-                currentImage = viewModel.getLoyaltyCard().getImageThumbnail(LoyaltyCardEditActivity.this);
-                imageLocationType = ImageLocationType.icon;
-                targetView = thumbnail;
-            } else {
-                throw new IllegalArgumentException("Invalid IMAGE ID " + v.getId());
-            }
+            get_image(v.getId());
 
             LinkedHashMap<String, Callable<Void>> cardOptions = new LinkedHashMap<>();
             if (currentImage != null && v.getId() != R.id.thumbnail) {
@@ -1220,7 +1257,7 @@ public class LoyaltyCardEditActivity extends CatimaAppCompatActivity implements 
                     return null;
                 });
             }
-
+            
             if (v.getId() == R.id.thumbnail) {
                 cardOptions.put(getString(R.string.selectColor), () -> {
                     ColorPickerDialog.Builder dialogBuilder = ColorPickerDialog.newBuilder();
@@ -1236,17 +1273,7 @@ public class LoyaltyCardEditActivity extends CatimaAppCompatActivity implements 
             }
 
             cardOptions.put(getString(R.string.takePhoto), () -> {
-                int permissionRequestType;
-
-                if (v.getId() == R.id.frontImageHolder) {
-                    permissionRequestType = PERMISSION_REQUEST_CAMERA_IMAGE_FRONT;
-                } else if (v.getId() == R.id.backImageHolder) {
-                    permissionRequestType = PERMISSION_REQUEST_CAMERA_IMAGE_BACK;
-                } else if (v.getId() == R.id.thumbnail) {
-                    permissionRequestType = PERMISSION_REQUEST_CAMERA_IMAGE_ICON;
-                } else {
-                    throw new IllegalArgumentException("Unknown ID type " + v.getId());
-                }
+                int permissionRequestType = get_permissionRequestType_camera(v.getId());
 
                 PermissionUtils.requestCameraPermission(LoyaltyCardEditActivity.this, permissionRequestType);
 
@@ -1254,17 +1281,7 @@ public class LoyaltyCardEditActivity extends CatimaAppCompatActivity implements 
             });
 
             cardOptions.put(getString(R.string.addFromImage), () -> {
-                int permissionRequestType;
-
-                if (v.getId() == R.id.frontImageHolder) {
-                    permissionRequestType = PERMISSION_REQUEST_STORAGE_IMAGE_FRONT;
-                } else if (v.getId() == R.id.backImageHolder) {
-                    permissionRequestType = PERMISSION_REQUEST_STORAGE_IMAGE_BACK;
-                } else if (v.getId() == R.id.thumbnail) {
-                    permissionRequestType = PERMISSION_REQUEST_STORAGE_IMAGE_ICON;
-                } else {
-                    throw new IllegalArgumentException("Unknown ID type " + v.getId());
-                }
+                int permissionRequestType = get_permissionRequestType_storage(v.getId());
 
                 PermissionUtils.requestStorageReadPermission(LoyaltyCardEditActivity.this, permissionRequestType);
 
@@ -1288,7 +1305,7 @@ public class LoyaltyCardEditActivity extends CatimaAppCompatActivity implements 
 
                         return null;
                     });
-                }
+                }            
             }
 
             int titleResource;
@@ -1311,7 +1328,7 @@ public class LoyaltyCardEditActivity extends CatimaAppCompatActivity implements 
 
                         for (int i = 0; i < which; i++) {
                             callable = callables.next();
-                        }
+                        }                      
 
                         try {
                             callable.call();
