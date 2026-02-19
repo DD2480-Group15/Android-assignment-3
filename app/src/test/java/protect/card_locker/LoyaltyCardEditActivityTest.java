@@ -118,7 +118,7 @@ public class LoyaltyCardEditActivityTest {
      * Expected outcome: one chip is added to the chip group, and it is checked.
      */
     @Test
-    public void onResume_noChipsSameExistingAndLoyaltyGroupId_addsCheckedChip() {
+    public void onResume_noChipsSameGroupId_addsCheckedChip() {
         Mockito.when(mockViewModel.getAddGroup()).thenReturn("notSameGroupId");
         Mockito.when(mockViewModel.getLoyaltyCardId()).thenReturn(1); // adjust if needed
 
@@ -243,7 +243,7 @@ public class LoyaltyCardEditActivityTest {
      * Expected outcome: The background color of {@code thumbnailEditIcon} is black, and a color filter is applied.
      */
     @Test
-    public void onResume_whiteHeaderColor_needsDarkForeground() {
+    public void onResume_whiteHeaderColor_setsDarkForeground() {
         card.headerColor = Color.WHITE;
 
         activity.groupsChips.addView(new View(activity));
