@@ -787,83 +787,23 @@ public class LoyaltyCardEditActivity extends CatimaAppCompatActivity implements 
 
         onResuming = true;
 
-        if (viewModel.getUpdateLoyaltyCard()) {
-            setTitle(R.string.editCardTitle);
-        } else {
-            setTitle(R.string.addCardTitle);
-        }
-
         boolean hadChanges = viewModel.getHasChanged();
+        LoyaltyCard card = viewModel.getLoyaltyCard();
 
-        storeFieldEdit.setText(viewModel.getLoyaltyCard().store);
-        noteFieldEdit.setText(viewModel.getLoyaltyCard().note);
-        formatDateField(this, validFromField, viewModel.getLoyaltyCard().validFrom);
-        formatDateField(this, expiryField, viewModel.getLoyaltyCard().expiry);
-        cardIdFieldView.setText(viewModel.getLoyaltyCard().cardId);
-        String barcodeId = viewModel.getLoyaltyCard().barcodeId;
-        barcodeIdField.setText(barcodeId != null && !barcodeId.isEmpty() ? barcodeId : getString(R.string.sameAsCardId));
-        CatimaBarcode barcodeType = viewModel.getLoyaltyCard().barcodeType;
-        barcodeTypeField.setText(barcodeType != null ? barcodeType.prettyName() : getString(R.string.noBarcode));
-        Charset barcodeEncoding = viewModel.getLoyaltyCard().barcodeEncoding;
-        barcodeEncodingField.setText(barcodeEncoding.name());
-
-        // We set the balance here (with onResuming/onRestoring == true) to prevent formatBalanceCurrencyField() from setting it (via onTextChanged),
-        // which can cause issues when switching locale because it parses the balance and e.g. the decimal separator may have changed.
-        formatBalanceCurrencyField(viewModel.getLoyaltyCard().balanceType);
-        BigDecimal balance = viewModel.getLoyaltyCard().balance == null ? new BigDecimal("0") : viewModel.getLoyaltyCard().balance;
-        setLoyaltyCardBalance(balance);
-        balanceField.setText(Utils.formatBalanceWithoutCurrencySymbol(viewModel.getLoyaltyCard().balance, viewModel.getLoyaltyCard().balanceType));
-        validBalance = true;
-        Log.d(TAG, "Setting balance to " + balance);
+        setModeTitle();
+        bindGeneralFields(card);
+        bindBarcodeFields(card);
+        bindBalanceFields(card);
 
         if (groupsChips.getChildCount() == 0) {
-            List<Group> existingGroups = DBHelper.getGroups(mDatabase);
-
-            List<Group> loyaltyCardGroups = DBHelper.getLoyaltyCardGroups(mDatabase, viewModel.getLoyaltyCardId());
-
-            if (existingGroups.isEmpty()) {
-                groupsChips.setVisibility(View.GONE);
-            } else {
-                groupsChips.setVisibility(View.VISIBLE);
-            }
-
-            for (Group group : DBHelper.getGroups(mDatabase)) {
-                LayoutChipChoiceBinding chipChoiceBinding = LayoutChipChoiceBinding
-                        .inflate(LayoutInflater.from(groupsChips.getContext()), groupsChips, false);
-                Chip chip = chipChoiceBinding.getRoot();
-                chip.setText(group._id);
-                chip.setTag(group);
-
-                if (group._id.equals(viewModel.getAddGroup())) {
-                    chip.setChecked(true);
-                } else {
-                    chip.setChecked(false);
-                    for (Group loyaltyCardGroup : loyaltyCardGroups) {
-                        if (loyaltyCardGroup._id.equals(group._id)) {
-                            chip.setChecked(true);
-                            break;
-                        }
-                    }
-                }
-
-                chip.setOnTouchListener((v, event) -> {
-                    viewModel.setHasChanged(true);
-
-                    return false;
-                });
-
-                groupsChips.addView(chip);
-            }
+            addChipIfPossible();
         }
 
-        if (viewModel.getLoyaltyCard().headerColor == null) {
-            // If name is set, pick colour relevant for name. Otherwise pick randomly
-            setLoyaltyCardHeaderColor(viewModel.getLoyaltyCard().store.isEmpty() ? Utils.getRandomHeaderColor(this) : Utils.getHeaderColor(this, viewModel.getLoyaltyCard()));
-        }
+        setHeaderColor(card);
 
-        setThumbnailImage(viewModel.getLoyaltyCard().getImageThumbnail(this));
-        setCardImage(ImageLocationType.front, cardImageFront, viewModel.getLoyaltyCard().getImageFront(this), true);
-        setCardImage(ImageLocationType.back, cardImageBack, viewModel.getLoyaltyCard().getImageBack(this), true);
+        setThumbnailImage(card.getImageThumbnail(this));
+        setCardImage(ImageLocationType.front, cardImageFront, card.getImageFront(this), true);
+        setCardImage(ImageLocationType.back, cardImageBack, card.getImageBack(this), true);
 
         // Initialization has finished
         if (!initDone) {
@@ -884,13 +824,7 @@ public class LoyaltyCardEditActivity extends CatimaAppCompatActivity implements 
         saveButton.bringToFront();
 
         generateIcon(storeFieldEdit.getText().toString().trim());
-
-        Integer headerColor = viewModel.getLoyaltyCard().headerColor;
-        if (headerColor != null) {
-            thumbnail.setOnClickListener(new ChooseCardImage());
-            thumbnailEditIcon.setBackgroundColor(Utils.needsDarkForeground(headerColor) ? Color.BLACK : Color.WHITE);
-            thumbnailEditIcon.setColorFilter(Utils.needsDarkForeground(headerColor) ? Color.WHITE : Color.BLACK);
-        }
+        setThumbnailEditIconColor(card.headerColor);
 
         onResuming = false;
         onRestoring = false;
@@ -901,6 +835,109 @@ public class LoyaltyCardEditActivity extends CatimaAppCompatActivity implements 
             viewModel.setOpenSetIconMenu(false);
             thumbnail.callOnClick();
         }
+    }
+
+    private void setModeTitle() {
+        if (viewModel.getUpdateLoyaltyCard()) {
+            setTitle(R.string.editCardTitle);
+        } else {
+            setTitle(R.string.addCardTitle);
+        }
+    }
+
+    private void bindGeneralFields(LoyaltyCard card) {
+        storeFieldEdit.setText(card.store);
+        noteFieldEdit.setText(card.note);
+        formatDateField(this, validFromField, card.validFrom);
+        formatDateField(this, expiryField, card.expiry);
+        cardIdFieldView.setText(card.cardId);
+    }
+
+    private void bindBarcodeFields(LoyaltyCard card) {
+        String barcodeId = card.barcodeId;
+        barcodeIdField.setText(barcodeId != null && !barcodeId.isEmpty() ? barcodeId : getString(R.string.sameAsCardId));
+
+        CatimaBarcode barcodeType = card.barcodeType;
+        barcodeTypeField.setText(barcodeType != null ? barcodeType.prettyName() : getString(R.string.noBarcode));
+
+        Charset barcodeEncoding = card.barcodeEncoding;
+        barcodeEncodingField.setText(barcodeEncoding.name());
+    }
+
+    private void bindBalanceFields(LoyaltyCard card) {
+        // We set the balance here (with onResuming/onRestoring == true) to prevent formatBalanceCurrencyField() from setting it (via onTextChanged),
+        // which can cause issues when switching locale because it parses the balance and e.g. the decimal separator may have changed.
+        formatBalanceCurrencyField(card.balanceType);
+
+        BigDecimal balance = card.balance == null ? new BigDecimal("0") : card.balance;
+        setLoyaltyCardBalance(balance);
+
+        balanceField.setText(
+                Utils.formatBalanceWithoutCurrencySymbol(card.balance, viewModel.getLoyaltyCard().balanceType)
+        );
+
+        validBalance = true;
+        Log.d(TAG, "Setting balance to " + balance);
+    }
+
+    private void addChipIfPossible() {
+        List<Group> existingGroups = DBHelper.getGroups(mDatabase);
+
+        List<Group> loyaltyCardGroups = DBHelper.getLoyaltyCardGroups(mDatabase, viewModel.getLoyaltyCardId());
+
+        groupsChips.setVisibility(existingGroups.isEmpty() ? View.GONE : View.VISIBLE);
+
+        for (Group group : DBHelper.getGroups(mDatabase)) {
+            Chip chip = createGroupChip(group);
+
+            if (group._id.equals(viewModel.getAddGroup())) {
+                chip.setChecked(true);
+            } else {
+                chip.setChecked(false);
+                for (Group loyaltyCardGroup : loyaltyCardGroups) {
+                    if (loyaltyCardGroup._id.equals(group._id)) {
+                        chip.setChecked(true);
+                        break;
+                    }
+                }
+            }
+
+            chip.setOnTouchListener((v, event) -> {
+                viewModel.setHasChanged(true);
+
+                return false;
+            });
+
+            groupsChips.addView(chip);
+        }
+    }
+
+    private Chip createGroupChip(Group group) {
+        LayoutChipChoiceBinding chipChoiceBinding = LayoutChipChoiceBinding
+                .inflate(LayoutInflater.from(groupsChips.getContext()), groupsChips, false);
+        Chip chip = chipChoiceBinding.getRoot();
+        chip.setText(group._id);
+        chip.setTag(group);
+        return chip;
+    }
+
+    private void setHeaderColor(LoyaltyCard card) {
+        if (card.headerColor == null) {
+            // If name is set, pick colour relevant for name. Otherwise pick randomly
+            setLoyaltyCardHeaderColor(
+                    card.store.isEmpty() ?
+                            Utils.getRandomHeaderColor(this) :
+                            Utils.getHeaderColor(this, viewModel.getLoyaltyCard()));
+        }
+    }
+
+    private void setThumbnailEditIconColor(Integer headerColor) {
+        if (headerColor == null) return;
+
+        thumbnail.setOnClickListener(new ChooseCardImage());
+
+        thumbnailEditIcon.setBackgroundColor(Utils.needsDarkForeground(headerColor) ? Color.BLACK : Color.WHITE);
+        thumbnailEditIcon.setColorFilter(Utils.needsDarkForeground(headerColor) ? Color.WHITE : Color.BLACK);
     }
 
     protected void setThumbnailImage(@Nullable Bitmap bitmap) {
