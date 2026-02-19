@@ -208,6 +208,7 @@ public class VoucherVaultImporter implements Importer {
             ));
         }
 
+        CoverageTool.setFunc4Flag(22);
         return importedData;
     }
 
