@@ -176,6 +176,8 @@ public class ImportExportTest {
         assertNotNull(card); 
         assertEquals(1, card.archiveStatus);
     }
+
+
     
     /**
      * 
@@ -1301,5 +1303,42 @@ public class ImportExportTest {
         assertEquals(0, card.starStatus);
 
         TestHelpers.getEmptyDb(activity);
+    }
+
+    /**
+     * Tests that the codeType string in JSON maps respectively to each of the 6 corresponding BarcodeFormats (case branches) used by the CatimaBarcode class.
+     * */
+    @Test
+    public void voucherVaultBarcodeFormatsMapCorrectly() throws Exception {
+        String json = "["
+                    + "{\"description\":\"C1\",\"code\":\"1\",\"codeType\":\"CODE128\",\"color\":\"GREY\"},"
+                    + "{\"description\":\"C2\",\"code\":\"2\",\"codeType\":\"CODE39\",\"color\":\"BLUE\"},"
+                    + "{\"description\":\"C3\",\"code\":\"3\",\"codeType\":\"EAN13\",\"color\":\"GREEN\"},"
+                    + "{\"description\":\"C4\",\"code\":\"4\",\"codeType\":\"PDF417\",\"color\":\"ORANGE\"},"
+                    + "{\"description\":\"C5\",\"code\":\"5\",\"codeType\":\"QR\",\"color\":\"PURPLE\"},"
+                    + "{\"description\":\"C6\",\"code\":\"6\",\"codeType\":\"TEXT\",\"color\":\"RED\"}"
+                    + "]";
+
+        InputStream in = new ByteArrayInputStream(json.getBytes());
+        MultiFormatImporter.importData(activity, mDatabase, in, DataFormat.VoucherVault, null);
+
+        assertEquals(6, DBHelper.getLoyaltyCardCount(mDatabase));
+    }
+
+    /**
+     * Tests that if "balanceMilliunits" is present in JSON, the balance must be divided by 1000 in order for it to be set. If it is just "balance", it is used as is.
+     * */
+    @Test
+    public void voucherVaultMilliunitBalanceConvertsToBigDecimal() throws Exception {
+        String json = "["
+                    + "{\"description\":\"Milli\",\"code\":\"1\",\"codeType\":\"QR\",\"color\":\"YELLOW\",\"balanceMilliunits\":5500},"
+                    + "{\"description\":\"Std\",\"code\":\"2\",\"codeType\":\"QR\",\"color\":\"RED\",\"balance\":10.50}"
+                    + "]";
+
+        InputStream in = new ByteArrayInputStream(json.getBytes());
+        MultiFormatImporter.importData(activity, mDatabase, in, DataFormat.VoucherVault, null);
+
+        LoyaltyCard card = DBHelper.getLoyaltyCard(activity, mDatabase, 1);
+        assertEquals(new BigDecimal("5.5"), card.balance);
     }
 }
